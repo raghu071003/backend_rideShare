@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { riderLogin, updateRiderDetails } from "../controllers/user.controller.js";
+import { logoutUser, riderLogin, updateRiderDetails } from "../controllers/user.controller.js";
+import verifyJwt from "../Middleware/verifyjwt.js";
 
 
 
@@ -9,4 +10,5 @@ import { riderLogin, updateRiderDetails } from "../controllers/user.controller.j
 const router = Router();
 router.route("/login").post(riderLogin)
 router.route("/update").post(updateRiderDetails)
+router.route("/logout").post(verifyJwt,logoutUser)
 export default router

@@ -1,15 +1,20 @@
-import express from 'express'
-import cors from "cors"
-import userRouter from './Routes/user.routes.js'
-import adminRouter from './Routes/admin.routes.js'
+import express from 'express';
+import cors from "cors";
+import userRouter from './Routes/user.routes.js';
+import adminRouter from './Routes/admin.routes.js';
+
 const app = express();
 const port = process.env.PORT || 3000;
+
 app.use(express.json());
+
+// Replace '*' with your actual frontend URL
+const allowedOrigin = process.env.ORIGIN || 'http://localhost:5173';
+
 app.use(cors({
-    origin:'*',
-    credentials:true,
-}))
-console.log(process.env.ORIGIN);
+    origin: allowedOrigin, // Specify the exact origin
+    credentials: true, // Allow credentials
+}));
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
@@ -18,7 +23,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use("/api/v1/user",userRouter)
-app.use("/api/v1/admin",adminRouter)
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/admin", adminRouter);
 
-export {app}
+export { app };
