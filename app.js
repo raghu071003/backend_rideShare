@@ -2,13 +2,13 @@ import express from 'express';
 import cors from "cors";
 import userRouter from './Routes/user.routes.js';
 import adminRouter from './Routes/admin.routes.js';
+import driverRouter from './Routes/driver.routes.js'
+import cookieParser from 'cookie-parser';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
-
-// Replace '*' with your actual frontend URL
 const allowedOrigin = process.env.ORIGIN || 'http://localhost:5173';
 
 app.use(cors({
@@ -23,7 +23,11 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(express.urlencoded({extended:true,limit:"16kb"}))
+app.use(cookieParser())
+
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/driver",driverRouter)
 
 export { app };

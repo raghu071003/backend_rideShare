@@ -1,31 +1,114 @@
+
+
 import jwt from 'jsonwebtoken';
-import { db } from '../db/index.js'; // Adjust the path based on your project structure
+import { db } from '../db/index.js';
 
 const verifyJwt = async (req, res, next) => {
     try {
-        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
-
+        const token =  req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+        // console.log(token);
+        
         if (!token) {
-            throw new ApiError(401, "Unauthorized Request");
+            return res.status(401).json({ message: "No token provided" });
         }
 
-        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        console.log(decodedToken);
-
-        // Assuming decodedToken contains riderId or similar identifier
+        const decodedToken = jwt.verify(
+            token,
+            process.env.ACCESS_TOKEN_SECRET || "your_jwt_secret"
+        );
+        // console.log(decodedToken);
+        
+        
         const query = "SELECT * FROM riders WHERE ID = ?";
         const [rows] = await db.promise().query(query, [decodedToken.id]);
 
         if (rows.length === 0) {
-            throw new ApiError(401, "Invalid Access Token");
+            return res.status(401).json({ message: "Invalid access token" });
         }
-
-        req.user = rows[0]; // Attach the user data to the request object
+        req.user = rows[0];
         next();
     } catch (error) {
-        console.error(error); // Log the error for debugging
-        next(new ApiError(401, error?.message || "Something Went Wrong"));
+        console.error("Token verification failed:", error);
+
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({ message: "Token has expired" });
+        } else if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        // Fallback for other types of errors
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+};
+const verifyJwt2 = async (req, res, next) => {
+    try {
+        const token = req.cookies?.Driver_accessToken || req.header("Authorization")?.replace("Bearer ", "")
+
+        if (!token) {
+            return res.status(401).json({ message: "No token provided" });
+        }
+
+        const decodedToken = jwt.verify(
+            token,
+            process.env.ACCESS_TOKEN_SECRET || "your_jwt_secret"
+        );
+        
+        const query = "SELECT * FROM riders WHERE ID = ?";
+        const [rows] = await db.promise().query(query, [decodedToken.id]);
+
+        if (rows.length === 0) {
+            return res.status(401).json({ message: "Invalid access token" });
+        }
+        req.user = rows[0];
+        next();
+    } catch (error) {
+        console.error("Token verification failed:", error);
+
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({ message: "Token has expired" });
+        } else if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        // Fallback for other types of errors
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+};
+const verifyJwt3 = async (req, res, next) => {
+    try {
+        const token = req.cookies?.admin_accessToken || req.header("Authorization")?.replace("Bearer ", "")
+
+        if (!token) {
+            return res.status(401).json({ message: "No token provided" });
+        }
+
+        const decodedToken = jwt.verify(
+            token,
+            process.env.ACCESS_TOKEN_SECRET || "your_jwt_secret"
+        );
+        
+        const query = "SELECT * FROM admin WHERE ID = ?";
+        const [rows] = await db.promise().query(query, [decodedToken.id]);
+
+        if (rows.length === 0) {
+            return res.status(401).json({ message: "Invalid access token" });
+        }
+        req.user = rows[0];
+        next();
+    } catch (error) {
+        console.error("Token verification failed:", error);
+
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({ message: "Token has expired" });
+        } else if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        // Fallback for other types of errors
+        return res.status(401).json({ message: "Unauthorized" });
     }
 };
 
-export default verifyJwt;
+
+
+export  {verifyJwt,verifyJwt2,verifyJwt3};

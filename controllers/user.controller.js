@@ -19,7 +19,7 @@ export const validateRider = async (email, password) => {
 
 const updateRiderDetails = async (req, res) => {
     const { riderId, source, destination, pickupTime, pickupDate } = req.body;
-    console.log(riderId);
+    // console.log(riderId);
     
     try {
         // Check if the rider details exist
@@ -67,7 +67,6 @@ const generateRefreshToken = (id) => {
 
 const generateTokens = async (riderId) => {
     try {
-        // Retrieve the user from the database using riderId
         const query = "SELECT * FROM riders WHERE ID = ?";
         const [rows] = await db.promise().query(query, [riderId]);
 
@@ -75,20 +74,18 @@ const generateTokens = async (riderId) => {
             throw new ApiError(404, "User not found");
         }
 
-        const user = rows[0]; // Assuming rows contain the user data
+        const user = rows[0]; 
 
-        // Generate tokens using user methods
-        const accessToken = generateAccessToken(user.ID);
-        const refreshToken = generateRefreshToken(user.ID);
-
-        // Save the refresh token to the database
+        const accessToken = generateAccessToken(user.id);
+        const refreshToken = generateRefreshToken(user.id);
+        
         const updateQuery = "UPDATE riders SET refreshToken = ? WHERE ID = ?";
         await db.promise().query(updateQuery, [refreshToken, riderId]);
 
         return { accessToken, refreshToken };
 
     } catch (error) {
-        throw new ApiError(400, error?.message || "Invalid Request");
+        return error
     }
 };
 
@@ -120,16 +117,58 @@ const riderLogin = async (req, res) => {
     }
 };
 
- const logoutUser = async (req, res) => {
-    const riderId = req.userId;
+const logoutUser = async (req, res) => {
+    const riderId = req.user.id;
+    // console.log(riderId);
+    
     try {
+        // Clear the refresh token in the database
         const updateQuery = "UPDATE riders SET refreshToken = NULL WHERE ID = ?";
         await db.promise().query(updateQuery, [riderId]);
 
-        res.status(200).json({ success: true, message: "Logged out successfully." });
+        // Options for clearing cookies (set path according to your application)
+        const options = {
+            httpOnly: true, // Make cookie inaccessible to client-side JavaScript
+            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+            sameSite: 'Strict', // Adjust according to your CSRF protection requirements
+            path: '/', // Specify the path
+        };
+
+        // Clear cookies
+        res.clearCookie("accessToken", options)
+           .clearCookie("refreshToken", options)
+           .status(200)
+           .json({ success: true, message: "Logged out successfully." });
     } catch (error) {
         console.error("Error logging out:", error);
         res.status(500).json({ success: false, message: "Error logging out." });
+    }
+};
+
+const sessionCheck = async (req, res) => {
+    const riderId = req.user.id;  // Get the user ID from the request
+    // console.log(riderId);
+    
+    if (riderId) {
+        try {
+            // Query to select the rider by their ID
+            const query = "SELECT * FROM riders WHERE id = ?";
+            const [rows] = await db.promise().query(query, [riderId]); // Destructure to get rows
+
+            if (rows.length > 0) {
+                // Return the rider data if found
+                res.status(200).json(rows[0]); // Send the first rider found
+            } else {
+                // If no rider found with that ID
+                res.status(404).json({ message: 'Rider not found' });
+            }
+        } catch (error) {
+            console.error("Database query error:", error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    } else {
+        // If no rider ID is provided
+        res.status(401).json({ message: 'No session' });
     }
 };
 
@@ -137,4 +176,5 @@ const riderLogin = async (req, res) => {
 
 
 
-export { riderLogin, updateRiderDetails,logoutUser };
+
+export { riderLogin, updateRiderDetails,logoutUser,sessionCheck };
