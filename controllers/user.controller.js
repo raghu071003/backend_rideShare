@@ -1,8 +1,10 @@
 import { db } from '../db/index.js';
 import jwt from 'jsonwebtoken';
+import { generateRide } from '../utils/genai.js';
+import axios from 'axios'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // Use a strong secret key and store it securely
-const JWT_EXPIRES_IN = '15m'; // Set the expiration time for access token
+const JWT_EXPIRES_IN = '2d'; // Set the expiration time for access token
 const REFRESH_TOKEN_EXPIRES_IN = '7d'; // Set the expiration time for refresh token
 
 export const validateRider = async (email, password) => {
@@ -147,7 +149,6 @@ const logoutUser = async (req, res) => {
 
 const sessionCheck = async (req, res) => {
     const riderId = req.user.id;  // Get the user ID from the request
-    // console.log(riderId);
     
     if (riderId) {
         try {
@@ -172,9 +173,106 @@ const sessionCheck = async (req, res) => {
     }
 };
 
+const generateRideSuggestions = async (req, res) => {
+    const { userData } = req.body; 
+
+    if (!userData) {
+        return res.status(400).json({ message: 'User data is required.' });
+    }
+
+    const { userSource, userDestination, userPreferredTime } = userData;
+    let availableRides = [];
+
+    try {
+        const query = `
+            SELECT * FROM driver_details 
+        `;
+        
+        const [rows] = await db.promise().query(query);
+
+        if (rows.length > 0) {
+            availableRides = rows;
+            console.log(availableRides);
+            
+        } else {
+            return res.status(404).json({ message: 'No available rides found.' });
+        }
+        const suggestions = await generateRide(userData, availableRides);
+
+        res.status(200).json({ success: true, suggestions });
+    } catch (error) {
+        console.error('Error generating ride suggestions:', error);
+        res.status(500).json({ success: false, message: 'Error generating ride suggestions.' });
+    }
+};
+const requestRide = async (req, res) => {
+    const riderId = req.user.id;
+    const { driverId, source, destination, pickupTime, pickupDate } = req.body;
+
+    // Validate input data
+    if (!source || !destination || !pickupDate || !pickupTime) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    // URL to which the request will be sent (replace with the actual URL)
+    const targetUrl = 'http://127.0.0.1:8080/ai/getRide'; // Replace this with the actual URL
+
+    // Prepare the payload
+    const payload = {
+        source,
+        destination,
+        pickup_time:pickupTime,
+        pickup_date:pickupDate,
+    };
+
+    try {
+        // Send the request to the external URL
+        const response = await axios.post(targetUrl, payload);
+        
+        // Return the response from the external API
+        return res.status(response.status).json(response.data);
+        
+    } catch (error) {
+        // Handle errors
+        // console.error('Error making request to external API:', error);
+        return res.status(error.response ? error.response.status : 500).json({ error: 'Failed to request ride.' });
+    }
+};
+
+const requestDriver = async (req, res) => {
+    const riderId = req.user.id; // Assuming the authenticated rider's ID is in req.user
+    const { driverId, source, destination, pickupTime, pickupDate,req_seating } = req.body;
+    // console.log(driverId,riderId,source,destination,pickupDate,pickupTime);
+    
+    // Validate input data
+    if (!driverId || !source || !destination || !pickupTime || !pickupDate) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    try {
+        // SQL query to insert a new ride request
+        const query = `
+            INSERT INTO ride_requests (rider_id, driver_id, source, destination, pickup_time, pickup_date, status,seating_required)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending',?)
+        `;
+        
+        const values = [riderId, driverId, source, destination, pickupTime, pickupDate,req_seating];
+
+        // Execute the query with db.promise()
+        const [result] = await db.promise().query(query, values);
+
+        // Return a success response with the inserted ID
+        res.status(201).json({
+            success: true,
+            message: 'Ride request created successfully',
+            requestId: result.insertId, // Inserted row ID
+        });
+    } catch (error) {
+        console.error("Error creating ride request:", error);
+        res.status(500).json({ success: false, message: 'Failed to create ride request' });
+    }
+};
 
 
 
-
-
-export { riderLogin, updateRiderDetails,logoutUser,sessionCheck };
+export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,generateRideSuggestions,requestRide ,requestDriver};

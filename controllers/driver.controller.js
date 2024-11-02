@@ -135,7 +135,7 @@ const getDriverRides = async (req, res) => {
     });
 };
 const logoutDriver = async (req, res) => {
-    const driverId = req.userId; // Assuming req.userId contains the driver's ID
+    const driverId = req.user.id; // Assuming req.userId contains the driver's ID
     try {
         const updateQuery = "UPDATE drivers SET refreshToken = NULL WHERE ID = ?";
         await db.promise().query(updateQuery, [driverId]);
@@ -170,6 +170,245 @@ const sessionCheck = (req, res) => {
 };
 
 
+const updateStatus = async (req, res) => {
+    // Extracting ride_id from the request body (or params if applicable)
+    const { ride_id } = req.body; 
+
+    // SQL query to update the status of a ride
+    const query = `
+        UPDATE rides 
+        SET status='completed'
+        WHERE ride_id = ?
+    `;
+
+    try {
+        // Execute the update query
+        db.query(query, [ride_id], (err, result) => {
+            if (err) {
+                // Log the error and send a server error response
+                console.error('Error updating ride status:', err);
+                return res.status(500).json({ message: "Server error while updating ride status" });
+            }
+
+            // Check if any rows were affected
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ message: "No ride found with the provided ride ID" });
+            }
+
+            // Successfully updated the ride status
+            res.status(200).json({ message: "Ride status updated successfully!" });
+        });
+    } catch (error) {
+        // Catch any unexpected errors and send a server error response
+        console.error('Unexpected error:', error);
+        res.status(500).json({ message: "Unexpected server error" });
+    }
+};
+
+const acceptRide = async (req, res) => {
+    const { ride_id, required_capacity } = req.body; // Assuming you pass required_capacity in the request body
+
+    // First, check the seating capacity
+    const capacityQuery = `
+        SELECT seating_capacity 
+        FROM rides 
+        WHERE ride_id = ?
+    `;
+
+    try {
+        // Fetch the current seating capacity for the ride
+        db.query(capacityQuery, [ride_id], (err, capacityResult) => {
+            if (err) {
+                console.error('Error fetching seating capacity:', err);
+                return res.status(500).json({ message: "Server error while fetching seating capacity" });
+            }
+
+            // Check if the ride was found
+            if (capacityResult.length === 0) {
+                return res.status(404).json({ message: "No ride found with the provided ride ID" });
+            }
+
+            const currentCapacity = capacityResult[0].seating_capacity;
+
+            // Check if the current capacity is sufficient
+            if (currentCapacity < required_capacity) {
+                return res.status(400).json({ message: "Not enough seating capacity to accept the ride" });
+            }
+
+            // Proceed to accept the ride if capacity check passes
+            const acceptQuery = `
+                UPDATE rides 
+                SET status='accepted', seating_capacity = seating_capacity - ?
+                WHERE ride_id = ?
+            `;
+
+            db.query(acceptQuery, [required_capacity, ride_id], (err, result) => {
+                if (err) {
+                    console.error('Error accepting ride:', err);
+                    return res.status(500).json({ message: "Server error while accepting ride" });
+                }
+
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ message: "No ride found with the provided ride ID" });
+                }
+
+                res.status(200).json({ message: "Ride accepted successfully!" });
+            });
+        });
+    } catch (error) {
+        console.error('Unexpected error:', error);
+        res.status(500).json({ message: "Unexpected server error" });
+    }
+};
 
 
-export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck}
+
+const cancelRide = async (req, res) => {
+    const { ride_id } = req.body; 
+
+    const query = `
+        UPDATE rides 
+        SET status='cancelled'
+        WHERE ride_id = ?
+    `;
+
+    try {
+        db.query(query, [ride_id], (err, result) => {
+            if (err) {
+                console.error('Error cancelling ride:', err);
+                return res.status(500).json({ message: "Server error while cancelling ride" });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ message: "No ride found with the provided ride ID" });
+            }
+
+            res.status(200).json({ message: "Ride cancelled successfully!" });
+        });
+    } catch (error) {
+        console.error('Unexpected error:', error);
+        res.status(500).json({ message: "Unexpected server error" });
+    }
+};
+
+
+const availableRides = async(req,res)=>{
+    const { source, destination } = req.query;
+
+    const query = `
+        SELECT * FROM rides 
+        WHERE source = ? AND destination = ? AND status = 'available'
+    `;
+
+    try {
+        db.query(query, [source, destination], (err, results) => {
+            if (err) {
+                console.error('Error fetching available rides:', err);
+                return res.status(500).json({ success: false, message: 'Server error while fetching rides.' });
+            }
+
+            res.status(200).json({ success: true, rides: results });
+        });
+    } catch (error) {
+        console.error('Unexpected error:', error);
+        res.status(500).json({ success: false, message: 'Unexpected server error.' });
+    }
+}
+const respondToRideRequest = async (req, res) => {
+    const { requestId, response, requiredCapacity } = req.body;
+    const driverId = req.user.id;
+
+    if (!['accepted', 'rejected'].includes(response)) {
+        return res.status(400).json({ message: "Invalid response. Must be 'accepted' or 'rejected'." });
+    }
+
+    try {
+        const checkQuery = "SELECT * FROM ride_requests WHERE id = ? AND status = 'pending'";
+        const [rows] = await db.promise().query(checkQuery, [requestId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Ride request not found or already responded to." });
+        }
+        
+        if (response === 'accepted') {
+            const { source, destination, pickup_time, pickup_date, rider_id } = rows[0];
+            
+            const dateObject = new Date(pickup_date);
+            const formatedDate = `${dateObject.getFullYear()}-${String(dateObject.getMonth() + 1).padStart(2, '0')}-${String(dateObject.getDate()).padStart(2, '0')}`;
+        
+            const insertRideQuery = `
+                INSERT INTO rides (driver_id, rider_id, source, destination, pickup_time, date, vehicle_type, seating_capacity, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
+            `;
+            await db.promise().query(insertRideQuery, [driverId, rider_id, source, destination, pickup_time, formatedDate, "Car", requiredCapacity]);
+        
+            const updateCapacityQuery = `
+                UPDATE driver_details 
+                SET seating_capacity = seating_capacity - ?
+                WHERE driver_id = ?
+            `;
+            await db.promise().query(updateCapacityQuery, [requiredCapacity, driverId]);
+            
+            // Update the ride request status to 'accepted'
+            const updateRequestQuery = `
+                UPDATE ride_requests 
+                SET status = 'accepted' 
+                WHERE id = ?
+            `;
+            await db.promise().query(updateRequestQuery, [requestId]);
+        }
+        
+        else if (response === 'rejected') {
+            const { source, destination, pickup_time, pickup_date, rider_id } = rows[0];
+            const dateObject = new Date(pickup_date);
+            const formatedDate = `${dateObject.getFullYear()}-${String(dateObject.getMonth() + 1).padStart(2, '0')}-${String(dateObject.getDate()).padStart(2, '0')}`;
+            const insertRideQuery = `
+                INSERT INTO rides (driver_id, rider_id, source, destination, pickup_time, date, status)
+                VALUES (?, ?, ?, ?, ?, ?, 'cancelled')
+            `;
+            await db.promise().query(insertRideQuery, [driverId, rider_id, source, destination, pickup_time, formatedDate]);
+
+            // Update the ride request status to 'rejected'
+            const updateRequestQuery = `
+                UPDATE ride_requests 
+                SET status = 'rejected' 
+                WHERE id = ?
+            `;
+            await db.promise().query(updateRequestQuery, [requestId]);
+        }
+
+        console.log(`Ride request ${response} by driver ${driverId}`);
+        res.status(200).json({ success: true, message: `Ride request ${response} successfully!` });
+    } catch (error) {
+        console.error("Error responding to ride request:", error);
+        res.status(500).json({ success: false, message: "Error responding to ride request." });
+    }
+};
+
+
+
+ const getRideRequests = async (req, res) => {
+    const driverId = req.user.id; // Assuming authMiddleware adds the driver's ID to req.user
+
+    try {
+        const query = `
+            SELECT rr.id, rr.rider_id, rr.source, rr.destination, rr.pickup_time, rr.pickup_date, rr.status,rr.seating_required
+            FROM ride_requests AS rr
+            WHERE rr.driver_id = ? AND rr.status = 'pending'
+        `;
+
+        const [requests] = await db.promise().query(query, [driverId]);
+
+        if (requests.length > 0) {
+            res.status(200).json({ success: true, requests });
+        } else {
+            res.status(404).json({ success: false, message: "No ride requests found." });
+        }
+    } catch (error) {
+        console.error("Error fetching ride requests:", error);
+        res.status(500).json({ success: false, message: "Error fetching ride requests." });
+    }
+};
+
+
+export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests}

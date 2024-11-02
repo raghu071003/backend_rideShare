@@ -51,7 +51,7 @@ const generateTokens = async (driverId) => {
 const adminLogin = async (req, res) => {
     const { username, password } = req.body;
         // console.log(username,password);
-        console.log(username,password);
+        // console.log(username,password);
         
     if (!username || !password) {
         return res.status(400).json({ message: 'Username and password are required' });
@@ -155,7 +155,28 @@ const addDriver = async (req, res) => {
     }
 };
 
+const getAvailableRides = async (req, res) => {
+    try {
+        // Define the query to fetch available rides
+        const query = `
+            SELECT * FROM driver_details 
+            WHERE  seating_capacity > 0
+        `;
+
+        const [results] = await db.promise().query(query); // Execute the query
+
+        // Check if there are any available rides
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'No available rides found.' });
+        }
+
+        // Return the list of available rides
+        res.status(200).json(results);
+    } catch (error) {
+        console.error("Database query error:", error); // Log the error for debugging
+        res.status(500).json({ error: 'Failed to retrieve available rides.' });
+    }
+};
 
 
-
-export {adminLogin,getRides,adminLogout,addRider,addDriver}
+export {adminLogin,getRides,adminLogout,addRider,addDriver,getAvailableRides}
