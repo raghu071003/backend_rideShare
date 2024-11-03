@@ -50,7 +50,7 @@ def genai():
     user_in = str(user_in)
    
     # Append b to a
-    user_in =  input_driv + "match with a "+ user_in
+    user_in =  input_driv + "match with a "+ user_in + "Donot give any extra text Strictly just give the json object"
     
 
     # Print the final result
@@ -238,7 +238,7 @@ def genai():
     ]
     )
     response = chat_session.send_message(user_in)
-
+    print(response)
     asp = response.text
     cleaned_a = asp.replace('```json', '').replace('```', '').strip()
 

@@ -228,6 +228,7 @@ const requestRide = async (req, res) => {
     try {
         // Send the request to the external URL
         const response = await axios.post(targetUrl, payload);
+        // console.log(response.data);
         
         // Return the response from the external API
         return res.status(response.status).json(response.data);
