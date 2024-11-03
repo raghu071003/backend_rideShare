@@ -315,7 +315,7 @@ const availableRides = async(req,res)=>{
     }
 }
 const respondToRideRequest = async (req, res) => {
-    const { requestId, response, requiredCapacity } = req.body;
+    const { requestId, response, requiredCapacity,price } = req.body;
     const driverId = req.user.id;
 
     if (!['accepted', 'rejected'].includes(response)) {
@@ -337,10 +337,10 @@ const respondToRideRequest = async (req, res) => {
             const formatedDate = `${dateObject.getFullYear()}-${String(dateObject.getMonth() + 1).padStart(2, '0')}-${String(dateObject.getDate()).padStart(2, '0')}`;
         
             const insertRideQuery = `
-                INSERT INTO rides (driver_id, rider_id, source, destination, pickup_time, date, vehicle_type, seating_capacity, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
+                INSERT INTO rides (driver_id, rider_id, source, destination, pickup_time, date, vehicle_type, seating_capacity, status,price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'accepted', ?)
             `;
-            await db.promise().query(insertRideQuery, [driverId, rider_id, source, destination, pickup_time, formatedDate, "Car", requiredCapacity]);
+            await db.promise().query(insertRideQuery, [driverId, rider_id, source, destination, pickup_time, formatedDate, "Car", requiredCapacity,price]);
         
             const updateCapacityQuery = `
                 UPDATE driver_details 
@@ -392,7 +392,7 @@ const respondToRideRequest = async (req, res) => {
 
     try {
         const query = `
-            SELECT rr.id, rr.rider_id, rr.source, rr.destination, rr.pickup_time, rr.pickup_date, rr.status,rr.seating_required
+            SELECT rr.id, rr.rider_id, rr.source, rr.destination, rr.pickup_time, rr.pickup_date, rr.status,rr.seating_required,rr.price
             FROM ride_requests AS rr
             WHERE rr.driver_id = ? AND rr.status = 'pending'
         `;

@@ -173,38 +173,38 @@ const sessionCheck = async (req, res) => {
     }
 };
 
-const generateRideSuggestions = async (req, res) => {
-    const { userData } = req.body; 
+// const generateRideSuggestions = async (req, res) => {
+//     const { userData } = req.body; 
 
-    if (!userData) {
-        return res.status(400).json({ message: 'User data is required.' });
-    }
+//     if (!userData) {
+//         return res.status(400).json({ message: 'User data is required.' });
+//     }
 
-    const { userSource, userDestination, userPreferredTime } = userData;
-    let availableRides = [];
+//     const { userSource, userDestination, userPreferredTime } = userData;
+//     let availableRides = [];
 
-    try {
-        const query = `
-            SELECT * FROM driver_details 
-        `;
+//     try {
+//         const query = `
+//             SELECT * FROM driver_details 
+//         `;
         
-        const [rows] = await db.promise().query(query);
+//         const [rows] = await db.promise().query(query);
 
-        if (rows.length > 0) {
-            availableRides = rows;
-            console.log(availableRides);
+//         if (rows.length > 0) {
+//             availableRides = rows;
+//             console.log(availableRides);
             
-        } else {
-            return res.status(404).json({ message: 'No available rides found.' });
-        }
-        const suggestions = await generateRide(userData, availableRides);
+//         } else {
+//             return res.status(404).json({ message: 'No available rides found.' });
+//         }
+//         const suggestions = await generateRide(userData, availableRides);
 
-        res.status(200).json({ success: true, suggestions });
-    } catch (error) {
-        console.error('Error generating ride suggestions:', error);
-        res.status(500).json({ success: false, message: 'Error generating ride suggestions.' });
-    }
-};
+//         res.status(200).json({ success: true, suggestions });
+//     } catch (error) {
+//         console.error('Error generating ride suggestions:', error);
+//         res.status(500).json({ success: false, message: 'Error generating ride suggestions.' });
+//     }
+// };
 const requestRide = async (req, res) => {
     const riderId = req.user.id;
     const { driverId, source, destination, pickupTime, pickupDate } = req.body;
@@ -242,7 +242,7 @@ const requestRide = async (req, res) => {
 
 const requestDriver = async (req, res) => {
     const riderId = req.user.id; // Assuming the authenticated rider's ID is in req.user
-    const { driverId, source, destination, pickupTime, pickupDate,req_seating } = req.body;
+    const { driverId, source, destination, pickupTime, pickupDate,req_seating,price } = req.body;
     // console.log(driverId,riderId,source,destination,pickupDate,pickupTime);
     
     // Validate input data
@@ -253,11 +253,11 @@ const requestDriver = async (req, res) => {
     try {
         // SQL query to insert a new ride request
         const query = `
-            INSERT INTO ride_requests (rider_id, driver_id, source, destination, pickup_time, pickup_date, status,seating_required)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending',?)
+            INSERT INTO ride_requests (rider_id, driver_id, source, destination, pickup_time, pickup_date, status,seating_required,price)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending',?,?)
         `;
         
-        const values = [riderId, driverId, source, destination, pickupTime, pickupDate,req_seating];
+        const values = [riderId, driverId, source, destination, pickupTime, pickupDate,req_seating,price];
 
         // Execute the query with db.promise()
         const [result] = await db.promise().query(query, values);
@@ -274,6 +274,24 @@ const requestDriver = async (req, res) => {
     }
 };
 
+const upcomingRides = async (req, res) => {
+    const userId = req.user.id;
+    const currentDate = new Date().toISOString().slice(0, 10); // Get current date in 'YYYY-MM-DD' format
+    const query = `
+        SELECT * FROM rides 
+        WHERE rider_id = ? AND date >= ? AND status='accepted'`; // Adjust 'date' to your actual date column name
 
+    try {
+        const [results] = await db.promise().query(query, [userId, currentDate]); 
+        if (results.length > 0) {
+            return res.status(200).json(results); 
+        } else {
+            return res.status(404).json({ message: 'No upcoming rides found.' }); 
+        }
+    } catch (error) {
+        console.error('Error fetching upcoming rides:', error);
+        return res.status(500).json({ error: 'Failed to fetch upcoming rides.' });
+    }
+};
 
-export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,generateRideSuggestions,requestRide ,requestDriver};
+export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides};

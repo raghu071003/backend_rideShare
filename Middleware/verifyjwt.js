@@ -86,6 +86,7 @@ const verifyJwt3 = async (req, res, next) => {
             token,
             process.env.ACCESS_TOKEN_SECRET || "your_jwt_secret"
         );
+        console.log(decodedToken);
         
         const query = "SELECT * FROM admin WHERE ID = ?";
         const [rows] = await db.promise().query(query, [decodedToken.id]);

@@ -24,62 +24,67 @@ const generateRefreshToken = (id) => {
     return jwt.sign({ id }, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
 };
 
-const generateTokens = async (driverId) => {
+const generateTokens = async (adminId) => {
     try {
-        const query = "SELECT * FROM drivers WHERE ID = ?";
-        const [rows] = await db.promise().query(query, [driverId]);
+        const query = "SELECT * FROM admin WHERE ID = ?";
+        const [rows] = await db.promise().query(query, [adminId]);
 
         if (rows.length === 0) {
-            throw new ApiError(404, "User not found");
+            throw new ApiError(404, "Admin not found");
         }
 
         const user = rows[0]; 
-
-        const accessToken = generateAccessToken(user.id);
-        const refreshToken = generateRefreshToken(user.id);
+        
+        const admin_accessToken = generateAccessToken(user.id);
+        const admin_refreshToken = generateRefreshToken(user.id);
         
         const updateQuery = "UPDATE drivers SET refreshToken = ? WHERE ID = ?";
-        await db.promise().query(updateQuery, [refreshToken, driverId]);
+        await db.promise().query(updateQuery, [admin_refreshToken, adminId]);
 
-        return { accessToken, refreshToken };
+        return { admin_accessToken, admin_refreshToken };
 
     } catch (error) {
         return error
     }
 };
-
 const adminLogin = async (req, res) => {
     const { username, password } = req.body;
-        // console.log(username,password);
-        // console.log(username,password);
-        
+
     if (!username || !password) {
         return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    const adminId = await validateAdmin(username, password);
-    
-    if (adminId) {
-        
-        const { admin_accessToken, admin_refreshToken } = await generateTokens(adminId);
-        res.cookie('admin_accessToken', admin_accessToken, {
-            httpOnly: true,  
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 1000,
-        });
+    try {
+        const adminId = await validateAdmin(username, password);
 
-        res.cookie('admin_refreshToken', admin_refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-        });
+        if (adminId) {
+            const tokens = await generateTokens(adminId);
+            // console.log("Tokens received:", tokens); // Debug log
 
-        res.status(200).json({ id: adminId, admin_accessToken, admin_refreshToken });
-    } else {
-        
-        res.status(401).json({ message: 'Invalid username or password' });
+            const { admin_accessToken, admin_refreshToken } = tokens;
+
+            res.cookie('admin_accessToken', admin_accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 60 * 60 * 1000,
+            });
+
+            res.cookie('admin_refreshToken', admin_refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+
+            res.status(200).json({ id: adminId, admin_accessToken, admin_refreshToken });
+        } else {
+            res.status(401).json({ message: 'Invalid username or password' });
+        }
+    } catch (error) {
+        console.error("Admin login error:", error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 const getRides = async (req, res) => {
     const query = 'SELECT * FROM rides'; // Adjust to your actual table name
@@ -114,7 +119,7 @@ const adminLogout = async (req, res) => {
 };
 
 const addRider = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, empId } = req.body;
 
     if (!name || !email || !password) {
         return res.status(400).json({ message: 'Name, email, and password are required.' });
@@ -122,8 +127,8 @@ const addRider = async (req, res) => {
 
     try {
     
-        const query = 'INSERT INTO riders (name, email, password, refreshToken) VALUES (?, ?, ?, ?)';
-        const values = [name, email, password, null]; 
+        const query = 'INSERT INTO riders (name, email, password, refreshToken ,emp_id) VALUES (?, ?, ?, ?, ?)';
+        const values = [name, email, password, null,empId]; 
 
         
         const [result] = await db.promise().query(query, values);
@@ -137,15 +142,15 @@ const addRider = async (req, res) => {
 
 
 const addDriver = async (req, res) => {
-    const { name, email, password, mobile_no } = req.body;
+    const { name, email, password, mobile_no ,empId} = req.body;
 
     if (!name || !email || !password || !mobile_no) {
         return res.status(400).json({ message: 'Name, email, password, and mobile number are required.' });
     }
 
     try {
-        const query = 'INSERT INTO drivers (name, email, password, mobile_no, refreshToken) VALUES (?, ?, ?, ?, ?)';
-        const values = [name, email, password, mobile_no, null];
+        const query = 'INSERT INTO drivers (name, email, password, mobile_no, refreshToken,emp_id) VALUES (?, ?, ?, ?, ?,?)';
+        const values = [name, email, password, mobile_no, null,empId];
         const [result] = await db.promise().query(query, values);
 
         res.status(201).json({ success: true, driverId: result.insertId, message: 'Driver added successfully.' });

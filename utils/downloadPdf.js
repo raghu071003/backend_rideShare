@@ -54,19 +54,15 @@ const tableConfig = {
 
 // Format date values
 const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    // Trim the date string to remove any extra spaces
+    const parsedDate = new Date(date);
+    const formattedDate = parsedDate.toLocaleDateString();
+    return formattedDate
 };
 
 // Format time values
 const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    return new Date(date).toLocaleTimeString()
 };
 
 // Generate PDF document
@@ -131,6 +127,7 @@ const addTableContent = (doc, results, startY) => {
     results.forEach((ride, rowIndex) => {
         const currentY = startY + (rowIndex * tableConfig.rowHeight);
         let currentX = tableConfig.startX;
+        // console.log(ride.date);
         
         const rowData = [
             ride.ride_id,
@@ -138,7 +135,7 @@ const addTableContent = (doc, results, startY) => {
             ride.rider_id,
             ride.source,
             ride.destination,
-            formatTime(ride.pickup_time),
+            ride.pickup_time,
             formatDate(ride.date),
             ride.vehicle_type,
             ride.seating_capacity,
