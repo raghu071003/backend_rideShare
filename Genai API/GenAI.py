@@ -38,8 +38,9 @@ def genai():
             # Handle any request errors (e.g., connection errors, timeouts)
             return [f"Error fetching data: {str(e)}"]
     # Call the function and get the formatted responses
-    formatted_responses = fetch_and_format_data()
 
+    formatted_responses = fetch_and_format_data()
+    print(formatted_responses)
     # Use join() to efficiently build the result string from all rows
     input_driv = "".join(formatted_responses)
 

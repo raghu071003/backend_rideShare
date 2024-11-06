@@ -315,7 +315,7 @@ const availableRides = async(req,res)=>{
     }
 }
 const respondToRideRequest = async (req, res) => {
-    const { requestId, response, requiredCapacity,price } = req.body;
+    const { requestId, response, requiredCapacity } = req.body;
     const driverId = req.user.id;
 
     if (!['accepted', 'rejected'].includes(response)) {
@@ -331,7 +331,7 @@ const respondToRideRequest = async (req, res) => {
         }
         
         if (response === 'accepted') {
-            const { source, destination, pickup_time, pickup_date, rider_id } = rows[0];
+            const { source, destination, pickup_time, pickup_date, rider_id,price } = rows[0];
             
             const dateObject = new Date(pickup_date);
             const formatedDate = `${dateObject.getFullYear()}-${String(dateObject.getMonth() + 1).padStart(2, '0')}-${String(dateObject.getDate()).padStart(2, '0')}`;
@@ -410,5 +410,53 @@ const respondToRideRequest = async (req, res) => {
     }
 };
 
+const getCurrentRides = async (req, res) => {
+    const driverId = req.user.id; // Assuming authMiddleware adds the driver's ID to req.user
+  
+    // Basic validation
+    if (!driverId) {
+      return res.status(400).json({ success: false, message: "Driver ID is required" });
+    }
+  
+    try {
+      const query = `
+        SELECT * FROM rides
+        WHERE driver_id = ?
+        AND status = 'accepted'
+      `;
+  
+      const [requests] = await db.promise().query(query, [driverId]);
+  
+      if (requests.length > 0) {
+        res.status(200).json({ success: true, requests });
+      } else {
+        res.status(404).json({ success: false, message: "No ride requests found." });
+      }
+    } catch (error) {
+      console.error("Error fetching ride requests for driver ID:", driverId, error);
+      res.status(500).json({ success: false, message: "Error fetching ride requests." });
+    }
+  };
+  
 
-export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests}
+  const completeRide = async (req, res) => {
+    const { rideId } = req.body
+
+    try {
+        const [result] = await db.promise().query(
+            'UPDATE rides SET status = ? WHERE ride_id = ?',
+            ['completed', rideId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Ride not found' });
+        }
+
+        res.status(200).json({ message: 'Ride status updated to completed' });
+    } catch (error) {
+        console.error('Error updating ride status:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests,getCurrentRides,completeRide}

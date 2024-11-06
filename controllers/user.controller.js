@@ -276,10 +276,12 @@ const requestDriver = async (req, res) => {
 
 const upcomingRides = async (req, res) => {
     const userId = req.user.id;
-    const currentDate = new Date().toISOString().slice(0, 10); // Get current date in 'YYYY-MM-DD' format
+    const currentDate = new Date().toISOString().slice(0, 10); 
     const query = `
-        SELECT * FROM rides 
-        WHERE rider_id = ? AND date >= ? AND status='accepted'`; // Adjust 'date' to your actual date column name
+        SELECT rides.*, drivers.mobile_no 
+        FROM rides 
+        JOIN drivers ON rides.driver_id = drivers.id
+        WHERE rides.rider_id = ? AND rides.date >= ? AND rides.status = 'accepted'`;
 
     try {
         const [results] = await db.promise().query(query, [userId, currentDate]); 
@@ -294,4 +296,62 @@ const upcomingRides = async (req, res) => {
     }
 };
 
-export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides};
+const completedRides = async (req, res) => {
+    const userId = req.user.id;
+    const query = `
+        SELECT * FROM rides 
+        WHERE rider_id = ? AND status='completed'`;
+
+    try {
+        const [results] = await db.promise().query(query, [userId]); 
+        if (results.length > 0) {
+            return res.status(200).json(results); 
+        } else {
+            return res.status(404).json({ message: 'No upcoming rides found.' }); 
+        }
+    } catch (error) {
+        console.error('Error fetching upcoming rides:', error);
+        return res.status(500).json({ error: 'Failed to fetch upcoming rides.' });
+    }
+};
+
+const updatePaymentStatus = async (req, res) => {
+    const { ride_id } = req.params;
+  
+    try {
+      // Execute the update query with promise-based syntax
+      const [result] = await db.promise().query(
+        'UPDATE rides SET payment_status = ? WHERE ride_id = ?',
+        ['paid', ride_id]
+      );
+  
+      // Check if the ride was found and updated
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Ride not found' });
+      }
+  
+      // Send a success response
+      res.status(200).json({ message: 'Payment status updated to paid' });
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+
+  const getSuggestions = async (req, res) => {
+    try {
+      // Execute the select query with promise-based syntax
+      const [rows] = await db.promise().query(
+        'SELECT DISTINCT name FROM places'
+      );
+  
+      // Send a response with the list of names
+      res.status(200).json(rows);
+    } catch (error) {
+      console.error('Error fetching names:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+  
+  
+export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides,completedRides,updatePaymentStatus,getSuggestions};
