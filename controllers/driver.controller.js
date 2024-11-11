@@ -131,6 +131,8 @@ const getDriverRides = async (req, res) => {
         if (err) {
             return res.status(500).json({ message: "Server error while fetching rides" });
         }
+        // console.log(rides);
+        
         res.status(200).json(rides);
     });
 };
@@ -458,5 +460,59 @@ const getCurrentRides = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+const updateDriverLocation = async (req, res) => {
+    const  driverId = req.user.id;
+    
+    const { latitude, longitude } = req.body;
+        
+    try {
+        const query = `
+            INSERT INTO driver_locations (driver_id, latitude, longitude, last_updated)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+            latitude = VALUES(latitude),
+            longitude = VALUES(longitude),
+            last_updated = NOW()`;
+            
+        await db.promise().query(query, [driverId, latitude, longitude]);
+        
+        res.status(200).json({
+            success: true,
+            message: "Location updated successfully"
+        });
+    } catch (error) {
+        console.error("Error updating driver location:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating driver location"
+        });
+    }
+};
 
-export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests,getCurrentRides,completeRide}
+const getDriverDetails = async (req, res) => {
+    const driverId = req.user.id; 
+
+    try {
+        // SQL query to get driver details and ride request details (source, destination, pickup_time, pickup_date)
+        const query = `
+            SELECT * from driver_details WHERE ID = ?;
+        `;
+
+        // Execute the query
+        const [rows] = await db.promise().query(query, [driverId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Driver not found or no ride requests found" });
+        }
+
+        // Send the driver and ride request details in the response
+        const driverDetails = rows[0];  // Assuming one driver, one or more ride requests
+        return res.status(200).json({ success: true, data: driverDetails });
+    } catch (error) {
+        console.error("Error fetching driver details:", error);
+        return res.status(500).json({ success: false, message: "An error occurred while retrieving driver details" });
+    }
+};
+
+
+export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests,getCurrentRides,completeRide,updateDriverLocation,getDriverDetails}

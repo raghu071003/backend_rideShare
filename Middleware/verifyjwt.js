@@ -86,7 +86,6 @@ const verifyJwt3 = async (req, res, next) => {
             token,
             process.env.ACCESS_TOKEN_SECRET || "your_jwt_secret"
         );
-        console.log(decodedToken);
         
         const query = "SELECT * FROM admin WHERE ID = ?";
         const [rows] = await db.promise().query(query, [decodedToken.id]);
@@ -98,14 +97,11 @@ const verifyJwt3 = async (req, res, next) => {
         next();
     } catch (error) {
         console.error("Token verification failed:", error);
-
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({ message: "Token has expired" });
         } else if (error.name === "JsonWebTokenError") {
             return res.status(401).json({ message: "Invalid token" });
         }
-
-        // Fallback for other types of errors
         return res.status(401).json({ message: "Unauthorized" });
     }
 };

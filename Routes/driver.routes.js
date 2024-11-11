@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { acceptRide, cancelRide, completeRide, driverLogin, getCurrentRides, getDriverRides, getRideRequests, logoutDriver, respondToRideRequest, sessionCheck, updateStatus } from "../controllers/driver.controller.js";
+import { acceptRide, cancelRide, completeRide, driverLogin, getCurrentRides, getDriverDetails, getDriverRides, getRideRequests, logoutDriver, respondToRideRequest, sessionCheck, updateDriverLocation, updateStatus } from "../controllers/driver.controller.js";
 
 import { updateDriverDetails } from "../controllers/driver.controller.js";
 import { verifyJwt2 } from "../Middleware/verifyjwt.js"
@@ -19,4 +19,6 @@ router.route("/respondToRide").post(verifyJwt2,respondToRideRequest)
 router.route("/getRequests").get(verifyJwt2,getRideRequests)
 router.route("/currentRides").get(verifyJwt2,getCurrentRides)
 router.route("/completeRide").post(verifyJwt2,completeRide)
+router.route("/updateDriverLocation").post(verifyJwt2,updateDriverLocation)
+router.route("/myride").get(verifyJwt2,getDriverDetails)
 export default router

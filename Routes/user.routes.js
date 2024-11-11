@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {      logoutUser, requestRide, riderLogin, sessionCheck, updateRiderDetails,requestDriver, upcomingRides, completedRides, updatePaymentStatus, getSuggestions } from "../controllers/user.controller.js";
+import {logoutUser, requestRide, riderLogin, sessionCheck, updateRiderDetails,requestDriver, upcomingRides, completedRides, updatePaymentStatus, getSuggestions, getDriverLocation, updateRating } from "../controllers/user.controller.js";
 import {verifyJwt} from "../Middleware/verifyjwt.js";
 
 
@@ -19,4 +19,6 @@ router.route("/upcoming").get(verifyJwt,upcomingRides)
 router.route("/completedRides").get(verifyJwt,completedRides)
 router.route("/updatePayment/:ride_id").post(updatePaymentStatus)
 router.route("/getSuggestions").get(getSuggestions)
+router.route("/getCordinates/:driverId").get(getDriverLocation)
+router.route("/feedback").post(verifyJwt,updateRating)
 export default router

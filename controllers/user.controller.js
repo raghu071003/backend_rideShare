@@ -353,5 +353,110 @@ const updatePaymentStatus = async (req, res) => {
     }
   };
   
-  
-export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides,completedRides,updatePaymentStatus,getSuggestions};
+  const getDriverLocation = async (req, res) => {
+    const { driverId } = req.params;
+    
+    try {
+        const query = `
+            SELECT latitude, longitude, last_updated
+            FROM driver_locations 
+            WHERE driver_id = ?
+            ORDER BY last_updated DESC 
+            LIMIT 1`;
+            
+        const [rows] = await db.promise().query(query, [driverId]);
+        
+        if (rows.length > 0) {
+            res.status(200).json({
+                success: true,
+                location: {
+                    latitude: rows[0].latitude,
+                    longitude: rows[0].longitude,
+                    lastUpdated: rows[0].last_updated
+                }
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                message: "Driver location not found"
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching driver location:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching driver location"
+        });
+    }
+};
+
+const updateRating = async(req,res)=>{
+    const { driver_id,rating, feedback } = req.body;
+    const user_id = req.user.id;
+  if (!user_id || !rating || !feedback) {
+    return res.status(400).send('Missing required fields');
+  }
+
+  // Step 1: Get the current overall rating and num_ratings from the database
+  db.query('SELECT overall_rating, num_ratings FROM ratings WHERE driver_id = ?', [driver_id], async (err, results) => {
+    if (err) {
+      return res.status(500).send('Error fetching current rating data');
+    }
+
+    let previous_average = 0;
+    let num_ratings = 0;
+
+    if (results.length > 0) {
+      previous_average = results[0].overall_rating;
+      num_ratings = results[0].num_ratings;
+    }
+
+    // Step 2: Send feedback and rating to Python server
+    try {
+      const response = await axios.post('http://localhost:8080/ai/process_feedback', {
+        feedback,
+        rating,
+        previous_average,
+        num_ratings,
+      });
+
+      // Step 3: Process the response from Python server
+      const new_rating = response.data;
+    //   console.log(new_rating);
+      
+      // Step 4: Update the overall rating in the database
+      const new_overall_rating = (previous_average * num_ratings + new_rating) / (num_ratings + 1);
+      const new_num_ratings = num_ratings + 1;
+
+      // Insert or update the database
+      if (results.length > 0) {
+        db.query('UPDATE ratings SET overall_rating = ?, num_ratings = ? WHERE driver_id = ? AND user_id =?', 
+          [new_overall_rating, new_num_ratings,driver_id, user_id], 
+          (err) => {
+            if (err) return res.status(500).send('Error updating the rating');
+            res.status(200).send({ new_rating: new_overall_rating });
+        });
+      } else {
+        // console.log("updating");
+        
+        db.query('INSERT INTO ratings (user_id, overall_rating, num_ratings,driver_id) VALUES (?, ?, ?, ?)', 
+          [user_id, new_overall_rating, new_num_ratings,driver_id], 
+          (err) => {
+            if (err) {
+                console.log(err);
+                
+                return res.status(500).send('Error inserting new rating');
+            }
+            res.status(200).send({ new_rating: new_overall_rating });
+        });
+      }
+    } catch (error) {
+      console.error('Error calling Python server:', error);
+      res.status(500).send('Error processing feedback');
+    }
+  });
+    
+}
+
+
+export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides,completedRides,updatePaymentStatus,getSuggestions,getDriverLocation,updateRating};

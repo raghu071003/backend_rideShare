@@ -183,5 +183,31 @@ const getAvailableRides = async (req, res) => {
     }
 };
 
+const getDriverLocationHistory = async (req, res) => {
+    const { driverId } = req.params;
+    const { hours = 1 } = req.query; // Get location history for last X hours
+    
+    try {
+        const query = `
+            SELECT latitude, longitude, last_updated
+            FROM driver_locations
+            WHERE driver_id = ?
+            AND last_updated >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+            ORDER BY last_updated DESC`;
+            
+        const [rows] = await db.promise().query(query, [driverId, hours]);
+        
+        res.status(200).json({
+            success: true,
+            history: rows
+        });
+    } catch (error) {
+        console.error("Error fetching driver location history:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching driver location history"
+        });
+    }
+};
 
-export {adminLogin,getRides,adminLogout,addRider,addDriver,getAvailableRides}
+export {adminLogin,getRides,adminLogout,addRider,addDriver,getAvailableRides,getDriverLocationHistory}
