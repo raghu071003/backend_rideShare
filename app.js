@@ -4,6 +4,7 @@ import userRouter from './Routes/user.routes.js';
 import adminRouter from './Routes/admin.routes.js';
 import driverRouter from './Routes/driver.routes.js'
 import cookieParser from 'cookie-parser';
+import { Server } from 'socket.io';
 
 const app = express();
 const port = process.env.PORT || 3000;

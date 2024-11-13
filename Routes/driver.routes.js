@@ -3,6 +3,7 @@ import { acceptRide, cancelRide, completeRide, driverLogin, getCurrentRides, get
 
 import { updateDriverDetails } from "../controllers/driver.controller.js";
 import { verifyJwt2 } from "../Middleware/verifyjwt.js"
+import { sendDeatils } from "../controllers/user.controller.js";
 
 
 const router = Router();
@@ -21,4 +22,5 @@ router.route("/currentRides").get(verifyJwt2,getCurrentRides)
 router.route("/completeRide").post(verifyJwt2,completeRide)
 router.route("/updateDriverLocation").post(verifyJwt2,updateDriverLocation)
 router.route("/myride").get(verifyJwt2,getDriverDetails)
+router.route("/getUser").get(verifyJwt2,sendDeatils)
 export default router

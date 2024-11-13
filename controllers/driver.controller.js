@@ -514,5 +514,11 @@ const getDriverDetails = async (req, res) => {
     }
 };
 
-
-export {driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests,getCurrentRides,completeRide,updateDriverLocation,getDriverDetails}
+const sendDeatils = async(req,res)=>{
+    const userId = req.user.id;
+    if(!userId){
+        return res.status(401)
+    }
+    return res.status(200).json({userId})
+}
+export {sendDeatils,driverLogin,updateDriverDetails,getDriverRides,logoutDriver,sessionCheck,updateStatus,acceptRide, cancelRide,availableRides,respondToRideRequest,getRideRequests,getCurrentRides,completeRide,updateDriverLocation,getDriverDetails}

@@ -173,38 +173,6 @@ const sessionCheck = async (req, res) => {
     }
 };
 
-// const generateRideSuggestions = async (req, res) => {
-//     const { userData } = req.body; 
-
-//     if (!userData) {
-//         return res.status(400).json({ message: 'User data is required.' });
-//     }
-
-//     const { userSource, userDestination, userPreferredTime } = userData;
-//     let availableRides = [];
-
-//     try {
-//         const query = `
-//             SELECT * FROM driver_details 
-//         `;
-        
-//         const [rows] = await db.promise().query(query);
-
-//         if (rows.length > 0) {
-//             availableRides = rows;
-//             console.log(availableRides);
-            
-//         } else {
-//             return res.status(404).json({ message: 'No available rides found.' });
-//         }
-//         const suggestions = await generateRide(userData, availableRides);
-
-//         res.status(200).json({ success: true, suggestions });
-//     } catch (error) {
-//         console.error('Error generating ride suggestions:', error);
-//         res.status(500).json({ success: false, message: 'Error generating ride suggestions.' });
-//     }
-// };
 const requestRide = async (req, res) => {
     const riderId = req.user.id;
     const { driverId, source, destination, pickupTime, pickupDate } = req.body;
@@ -299,21 +267,27 @@ const upcomingRides = async (req, res) => {
 const completedRides = async (req, res) => {
     const userId = req.user.id;
     const query = `
-        SELECT * FROM rides 
-        WHERE rider_id = ? AND status='completed'`;
+        SELECT 
+            rides.*, 
+            drivers.name AS driver_name, 
+            drivers.mobile_no AS driver_mobile
+        FROM rides
+        INNER JOIN drivers ON rides.driver_id = drivers.id
+        WHERE rides.rider_id = ? AND rides.status = 'completed'`;
 
     try {
         const [results] = await db.promise().query(query, [userId]); 
         if (results.length > 0) {
             return res.status(200).json(results); 
         } else {
-            return res.status(404).json({ message: 'No upcoming rides found.' }); 
+            return res.status(404).json({ message: 'No completed rides found.' }); 
         }
     } catch (error) {
-        console.error('Error fetching upcoming rides:', error);
-        return res.status(500).json({ error: 'Failed to fetch upcoming rides.' });
+        console.error('Error fetching completed rides:', error);
+        return res.status(500).json({ error: 'Failed to fetch completed rides.' });
     }
 };
+
 
 const updatePaymentStatus = async (req, res) => {
     const { ride_id } = req.params;
@@ -458,5 +432,42 @@ const updateRating = async(req,res)=>{
     
 }
 
+const reportDriver = async (req, res) => {
+    const { rideId, driverId, driverName, driverContact, reportDetails } = req.body;
 
-export { riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides,completedRides,updatePaymentStatus,getSuggestions,getDriverLocation,updateRating};
+    if (!rideId || !driverId || !reportDetails) {
+        return res.status(400).json({
+            success: false,
+            message: 'Ride ID, Driver ID, and Report Details are required'
+        });
+    }
+
+    try {
+        const query = `
+            INSERT INTO reports (ride_id, driver_id, driver_name, driver_contact, report_details)
+            VALUES (?, ?, ?, ?, ?);
+        `;
+        await db.promise().query(query, [rideId, driverId, driverName, driverContact, reportDetails]);
+
+        res.status(201).json({
+            success: true,
+            message: 'Report submitted successfully'
+        });
+    } catch (error) {
+        console.error('Error submitting report:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error submitting report'
+        });
+    }
+};
+
+const sendDeatils = async(req,res)=>{
+    const userId = req.user.id;
+    if(!userId){
+        return res.status(401)
+    }
+    return res.status(200).json({userId})
+}
+
+export { sendDeatils,riderLogin, updateRiderDetails,logoutUser,sessionCheck,requestRide ,requestDriver,upcomingRides,completedRides,updatePaymentStatus,getSuggestions,getDriverLocation,updateRating,reportDriver};

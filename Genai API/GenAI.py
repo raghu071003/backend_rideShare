@@ -3,11 +3,12 @@ import google.generativeai as genai
 import requests
 import json
 from flask import Flask, request, jsonify
-
+from flask_cors import CORS
 
 
 
 app = Flask(__name__)
+CORS(app) 
 @app.route('/ai/getRide', methods=['POST'])
 def genaiMdl():
     data = request.get_json()
@@ -365,8 +366,15 @@ def process_feedback():
     return response.text
 
 
-
-
+from chatbot import RideShareChatbot
+chatbot = RideShareChatbot("AIzaSyCFYC3YudT7STlsvBazCvfkPuyKEyt5jQE")
+@app.route('/ai/chat', methods=['POST'])
+def chat():
+    print("hello")
+    user_input = request.json.get('message')
+    response = chatbot.process_message(user_input)
+    return jsonify({'response': response})
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
+   

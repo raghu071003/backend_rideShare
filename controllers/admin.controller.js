@@ -209,5 +209,27 @@ const getDriverLocationHistory = async (req, res) => {
         });
     }
 };
+const getAllReports = async (req, res) => {
+    try {
+        const query = `
+            SELECT r.report_id, r.ride_id, r.driver_id, r.driver_name, r.driver_contact, 
+                   r.report_details, r.report_date
+            FROM reports r
+            ORDER BY r.report_date DESC;
+        `;
+        const [rows] = await db.promise().query(query);
 
-export {adminLogin,getRides,adminLogout,addRider,addDriver,getAvailableRides,getDriverLocationHistory}
+        res.status(200).json({
+            success: true,
+            reports: rows
+        });
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching reports'
+        });
+    }
+};
+
+export {adminLogin,getRides,adminLogout,addRider,addDriver,getAvailableRides,getDriverLocationHistory,getAllReports}
